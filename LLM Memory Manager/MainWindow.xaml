@@ -1,0 +1,117 @@
+﻿<Window x:Class="LLM_Memory_Manager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:LLM_Memory_Manager"
+        mc:Ignorable="d"
+        Title="LLM Memory Manager" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E" FontFamily="Segoe UI">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#252526" BorderBrush="#333337" BorderThickness="0,0,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="60"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="60"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Sohbetler" Foreground="White" FontSize="20" FontWeight="Bold" 
+                           VerticalAlignment="Center" Margin="20,0,0,0"/>
+
+                <ListBox x:Name="ConversationListBox" Grid.Row="1" Background="Transparent" BorderThickness="0" Foreground="White" FontSize="15" Margin="10,0,10,0"
+                         SelectionChanged="ConversationListBox_SelectionChanged">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="10"/>
+                            <Setter Property="Margin" Value="0,2,0,2"/>
+                            <Setter Property="Background" Value="#2D2D30"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+
+                <Button Grid.Row="2" Content="+ Yeni Sohbet" Margin="15,10,15,10" 
+                  Background="#007ACC" Foreground="White" BorderThickness="0" FontSize="14" FontWeight="SemiBold"
+                        Click="BtnYeniSohbet_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="5"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Background="#1E1E1E">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="80"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="#333337" BorderThickness="0,0,0,1" Background="#252526">
+                <Grid>
+                    <TextBlock Text="GEMMA4" Foreground="#4EC9B0" FontSize="18" FontWeight="Bold" 
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal" Margin="0,0,20,0">
+                        <TextBlock x:Name="WebhookStatusTextBlock" Text="Webhook: Durdu" Foreground="#C8C8C8" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Content="Webhook" Margin="0,0,10,0"
+                                Background="Transparent" Foreground="#C8C8C8" BorderThickness="0" FontSize="14"
+                                Click="BtnWebhook_Click"/>
+                        <Button Content="Ölçüm" Margin="0,0,10,0"
+                                Background="Transparent" Foreground="#C8C8C8" BorderThickness="0" FontSize="14"
+                                Click="BtnTanilama_Click"/>
+                        <Button Content="⚙ Ayarlar"
+                                Background="Transparent" Foreground="#C8C8C8" BorderThickness="0" FontSize="14"
+                                Click="BtnAyarlar_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <ScrollViewer x:Name="MessagesScrollViewer" Grid.Row="1" Margin="20" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="MessagesPanel">
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Background="#252526" BorderBrush="#333337" BorderThickness="0,1,0,0" Padding="20,15,20,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="120"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="MessageInputBox" Grid.Column="0" Background="#333337" Foreground="White" BorderThickness="0" 
+                             FontSize="15" Padding="15,10,10,10" VerticalContentAlignment="Center" AcceptsReturn="True" TextWrapping="Wrap"/>
+
+                    <Button Grid.Column="1" Content="Gönder" Margin="10,0,0,0"
+                            Background="#007ACC" Foreground="White" BorderThickness="0" FontSize="15" FontWeight="Bold"
+                            Click="BtnGonder_Click">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="20"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Window>
