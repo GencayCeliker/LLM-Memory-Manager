@@ -57,3 +57,7 @@ LLM Memory Manager/
 4. **Çalıştırın:** `LLM Memory Manager.slnx` dosyasını açın ve **F5** ile başlatın. LM Studio'da modelin yüklü ve sunucunun açık olduğundan emin olun.
 
 > WhatsApp entegrasyonu için ayrıca bir Node.js WhatsApp köprüsü gerekir; bu depoda yer almaz. Uygulamanın geri kalanı onsuz çalışır.
+
+## 📄 Lisans
+
+Bu proje [MIT](LICENSE) lisansı altında sunulmuştur.
