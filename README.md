@@ -10,6 +10,21 @@ Bilgisayarda yerel olarak çalışan bir dil modeliyle (**LM Studio** üzerinden
 
 ---
 
+## 🎬 Demo
+
+![demo](docs/demo.gif)
+
+Sohbet listesi, **Ölçüm** (VRAM / bellek / bağlantı tanılama) ve **Ayarlar** pencereleri.
+
+| Ana ekran | Tanılama ve ölçüm | Model ve bellek ayarları |
+| --- | --- | --- |
+| ![Ana ekran](docs/ana-ekran.png) | ![Tanılama ve ölçüm](docs/olcum.png) | ![Model ve bellek ayarları](docs/ayarlar.png) |
+
+> Kayıt LM Studio kapalıyken alındı; bu yüzden tanılama ekranında LM Studio "Ulaşılamıyor" görünüyor. Sohbet için LM Studio'da bir model yüklü olmalıdır.
+>
+> Görüntüler, depodaki kurulum script'iyle kurulan örnek veritabanı üzerinde uygulama çalıştırılarak alınmıştır.
+
+
 ## 🚀 Özellikler
 
 - **Sohbet arayüzü:** Oturum (sohbet) listesi, yeni sohbet başlatma, mesaj gönderme
