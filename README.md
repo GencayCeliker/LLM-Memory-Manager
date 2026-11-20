@@ -18,7 +18,6 @@ Sohbet listesi, **Ölçüm** (VRAM / bellek / bağlantı tanılama) ve **Ayarlar
 
 | Ana ekran | Tanılama ve ölçüm | Model ve bellek ayarları |
 | --- | --- | --- |
-| ![Ana ekran](docs/ana-ekran.png) | ![Tanılama ve ölçüm](docs/olcum.png) | ![Model ve bellek ayarları](docs/ayarlar.png) |
 
 > Kayıt LM Studio kapalıyken alındı; bu yüzden tanılama ekranında LM Studio "Ulaşılamıyor" görünüyor. Sohbet için LM Studio'da bir model yüklü olmalıdır.
 >
