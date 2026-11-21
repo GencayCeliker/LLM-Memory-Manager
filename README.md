@@ -64,7 +64,7 @@ LLM Memory Manager/
     ├── ConversationService.cs  ← Sohbet ve webhook'un ortak akışı (geçmiş → bütçe → model → kayıt)
     └── WhatsappWebhookService.cs
 
-LlmBridge.Core/                 ← Arayüzden bağımsız LLM çekirdeği (ileride ara köprü de kullanır)
+LlmBridge.Core/                 ← Arayüzden bağımsız LLM çekirdeği
 ├── LmStudioClient.cs           ← Akışlı istemci, düşünme ayrımı, sessizlik zaman aşımı, tek sıra
 ├── ContextBuilder.cs           ← Token bütçesine göre geçmiş kırpma
 ├── TokenEstimator.cs           ← Token tahmini + gerçek sayıdan öğrenen çarpan
