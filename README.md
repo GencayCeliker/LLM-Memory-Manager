@@ -98,6 +98,10 @@ LlmBridge.Core.Tests/           ← xUnit testleri (sahte sunucuyla; LM Studio g
 
 > WhatsApp entegrasyonu için ayrıca bir Node.js WhatsApp köprüsü gerekir; bu depoda yer almaz. Uygulamanın geri kalanı onsuz çalışır.
 
+## 🤖 Yapay zekâ desteği
+
+Bu proje, yapay zekâ kodlama asistanı Claude'dan (Anthropic) yoğun destek alınarak geliştirildi; kodun tamamı sıfırdan elle yazılmadı. Fikir, gereksinimler, gerçek donanımda test (LM Studio ile RTX 4060), ölçümler, hataları yakalayıp düzeltmeleri yönlendirmek bana aitti.
+
 ## 📄 Lisans
 
 Bu proje [MIT](LICENSE) lisansı altında sunulmuştur.
