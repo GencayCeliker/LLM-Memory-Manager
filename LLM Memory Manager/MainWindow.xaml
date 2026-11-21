@@ -67,9 +67,12 @@
 
             <Border Grid.Row="0" BorderBrush="#333337" BorderThickness="0,0,0,1" Background="#252526">
                 <Grid>
-                    <TextBlock Text="GEMMA4" Foreground="#4EC9B0" FontSize="18" FontWeight="Bold" 
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    
+                    <StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <TextBlock x:Name="ModelTitleTextBlock" Text="LM Studio" Foreground="#4EC9B0" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock x:Name="ContextStatusTextBlock" Text="Henüz mesaj yok" Foreground="#9A9A9A" FontSize="11.5" Margin="0,2,0,0"
+                                   ToolTip="Modele giden bağlam / yüklü bağlam uzunluğu, yanıt ve düşünme token'ları, hız"/>
+                    </StackPanel>
+
                     <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal" Margin="0,0,20,0">
                         <TextBlock x:Name="WebhookStatusTextBlock" Text="Webhook: Durdu" Foreground="#C8C8C8" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <Button Content="Webhook" Margin="0,0,10,0"

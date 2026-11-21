@@ -1,24 +1,16 @@
+using LlmBridge.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Threading;
+using System.Windows.Media;
 
 namespace LLM_Memory_Manager
 {
     public partial class DiagnosticsWindow : Window
     {
-        private static readonly HttpClient HttpClient = new()
-        {
-            BaseAddress = new Uri("http://127.0.0.1:1234")
-        };
-
         public DiagnosticsWindow()
         {
             InitializeComponent();
@@ -73,90 +65,62 @@ namespace LLM_Memory_Manager
                 logLines.Add($"Bellek okunamadı: {ex.Message}");
             }
 
-            logLines.Add(await CheckLmStudioAsync());
-            logLines.Add(await CheckGpuMemoryAsync());
+            logLines.AddRange(await CheckLmStudioAsync());
+            logLines.AddRange(await CheckGpuAsync());
 
             DiagnosticsListBox.ItemsSource = logLines;
         }
 
-        private async Task<string> CheckLmStudioAsync()
+        private async Task<IEnumerable<string>> CheckLmStudioAsync()
         {
             try
             {
-                using var response = await HttpClient.GetAsync("/v1/models");
-                var body = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
+                var models = await new LmStudioClient().GetModelsAsync();
+                var loaded = models.Where(m => m.IsChatModel && m.IsLoaded).ToList();
+                LmStudioStatusTextBlock.Text = loaded.Count switch
                 {
-                    LmStudioStatusTextBlock.Text = "Kapalı";
-                    return $"LM Studio: Hata {response.StatusCode} - {body}";
+                    0 => "Model yok",
+                    1 => "Aktif",
+                    _ => $"{loaded.Count} model!"
+                };
+                var lines = new List<string> { $"LM Studio: aktif, {models.Count} model kayıtlı, {loaded.Count} sohbet modeli yüklü" };
+                lines.AddRange(loaded.Select(m =>
+                    $"  Yüklü: {m.Id} ({m.Type}), bağlam {m.LoadedContextLength?.ToString() ?? "?"} / en fazla {m.MaxContextLength?.ToString() ?? "?"} token"));
+                if (loaded.Count > 1)
+                {
+                    lines.Add("  UYARI: Birden çok model aynı anda yüklü; 8 GB GPU'da bellek taşar, yanıtlar ~6 kat yavaşlar.");
                 }
-
-                using var document = JsonDocument.Parse(body);
-                var count = document.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array
-                    ? data.GetArrayLength()
-                    : 0;
-
-                LmStudioStatusTextBlock.Text = "Aktif";
-                return $"LM Studio: Aktif, model sayısı {count}";
+                return lines;
             }
-            catch (Exception ex)
+            catch (LlmException ex)
             {
                 LmStudioStatusTextBlock.Text = "Ulaşılamıyor";
-                return $"LM Studio kontrolü başarısız: {ex.Message}";
+                return new[] { "LM Studio: " + ex.Message };
             }
         }
 
-        private async Task<string> CheckGpuMemoryAsync()
+        private async Task<IEnumerable<string>> CheckGpuAsync()
         {
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "nvidia-smi",
-                    Arguments = "--query-gpu=memory.used,memory.total --format=csv,noheader,nounits",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null)
-                {
-                    GpuMemoryTextBlock.Text = "Yok";
-                    return "GPU belleği: nvidia-smi başlatılamadı";
-                }
-
-                var output = await process.StandardOutput.ReadToEndAsync();
-                var error = await process.StandardError.ReadToEndAsync();
-                await process.WaitForExitAsync();
-
-                if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
-                {
-                    GpuMemoryTextBlock.Text = "Yok";
-                    return string.IsNullOrWhiteSpace(error)
-                        ? "GPU belleği: bilgi alınamadı"
-                        : $"GPU belleği: {error.Trim()}";
-                }
-
-                var parts = output.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (parts.Length >= 2 &&
-                    double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var usedMb) &&
-                    double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var totalMb))
-                {
-                    GpuMemoryTextBlock.Text = $"{usedMb:0.0} / {totalMb:0.0} MB";
-                    return $"GPU belleği: {usedMb:0.0} / {totalMb:0.0} MB";
-                }
-
-                GpuMemoryTextBlock.Text = "Bilinmiyor";
-                return $"GPU belleği: çözümlenemedi ({output.Trim()})";
-            }
-            catch (Exception ex)
+            var gpu = await GpuMonitor.ReadAsync();
+            if (gpu is null)
             {
                 GpuMemoryTextBlock.Text = "Yok";
-                return $"GPU belleği okunamadı: {ex.Message}";
+                return new[] { "GPU: nvidia-smi bulunamadı ya da yanıt vermedi" };
             }
+
+            GpuMemoryTextBlock.Text = $"{gpu.UsedMb} / {gpu.TotalMb} MB";
+            GpuMemoryTextBlock.Foreground = gpu.Health switch
+            {
+                GpuHealth.Spilling or GpuHealth.Hot => Brushes.OrangeRed,
+                GpuHealth.Tight => Brushes.Gold,
+                _ => Brushes.White
+            };
+            return new[]
+            {
+                $"GPU: {gpu.Name}, bellek {gpu.UsedMb} / {gpu.TotalMb} MB (boş {gpu.FreeMb} MB)",
+                $"GPU: paylaşılan (sistem RAM'i) {gpu.SharedMb?.ToString() ?? "?"} MB, {gpu.TemperatureC:0}°C, {gpu.PowerW:0} W, {gpu.ClockMhz} MHz, kullanım %{gpu.UtilizationPercent}",
+                "Durum: " + gpu.Describe()
+            };
         }
     }
 }

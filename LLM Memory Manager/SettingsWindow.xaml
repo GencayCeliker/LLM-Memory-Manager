@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Ayarlar" Height="420" Width="520"
+        Title="Ayarlar" Height="500" Width="540"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#1E1E1E"
@@ -26,6 +26,7 @@
         <Border Grid.Row="1" Background="#252526" CornerRadius="10" Padding="18">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -55,6 +56,9 @@
 
                 <TextBlock Grid.Row="5" Grid.Column="0" Text="Temperature" Foreground="#C8C8C8" VerticalAlignment="Center" Margin="0,0,12,0"/>
                 <TextBox x:Name="TemperatureTextBox" Grid.Row="5" Grid.Column="1" Padding="10" Background="#333337" Foreground="White" BorderThickness="0"/>
+
+                <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Margin="0,14,0,0" TextWrapping="Wrap" Foreground="#9A9A9A" FontSize="11.5"
+                           Text="Context Length: model LM Studio'da hangi uzunlukla yüklendiyse o kullanılır; bu değer yalnızca LM Studio bilgi vermezse geçerlidir. CPU Threads ve GPU Layers LM Studio'nun model yükleme ekranında ayarlanır, buradan uygulanmaz. 8 GB GPU için: Qwen3-VL-8B'de 4096 bağlam taşmasızdır, 8192 sınırdadır."/>
             </Grid>
         </Border>
 
