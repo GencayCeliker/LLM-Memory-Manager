@@ -1,6 +1,7 @@
 ﻿using LLM_Memory_Manager.Database;
 using LLM_Memory_Manager.Models;
 using LLM_Memory_Manager.Services;
+using LlmBridge.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +19,7 @@ namespace LLM_Memory_Manager
     public partial class MainWindow : Window
     {
         private readonly ChatRepository _chatRepository = new();
-        private readonly LmStudioService _lmStudioService = new();
+        private readonly ConversationService _conversation;
         private readonly SemaphoreSlim _sendLock = new(1, 1);
         private readonly WhatsappWebhookService _whatsappWebhookService;
         private User? _currentUser;
@@ -30,8 +31,9 @@ namespace LLM_Memory_Manager
         {
            
             InitializeComponent();
-           
-            _whatsappWebhookService = new WhatsappWebhookService(_chatRepository);
+
+            _conversation = new ConversationService(_chatRepository, new ChatPipeline(new LmStudioClient()));
+            _whatsappWebhookService = new WhatsappWebhookService(_chatRepository, _conversation);
             _whatsappWebhookService.LogReceived += message => Dispatcher.Invoke(() => WebhookStatusTextBlock.Text = $"Webhook: {message}");
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
@@ -72,23 +74,48 @@ namespace LLM_Memory_Manager
             }
 
             await _sendLock.WaitAsync();
+            TextBlock? replyText = null;
             try
             {
                 await EnsureConversationAsync();
                 await EnsureSettingsAsync();
 
                 AddMessageBubble(messageText, isUser: true);
-                await _chatRepository.SaveMessageAsync(_currentSession!.Session_ID, _currentUser!.User_ID, "user", messageText, EstimateTokenCount(messageText));
-
                 MessageInputBox.Clear();
 
-                var history = await _chatRepository.GetRecentMessagesAsync(_currentSession.Session_ID, Math.Max(1, _currentSettings!.Max_Memory_Messages));
-                var llmMessages = BuildLmStudioMessages(history, messageText, _currentSettings);
-                var requestOptions = BuildRequestOptions(_currentSettings);
-                var assistantReply = await _lmStudioService.GetChatReplyAsync(llmMessages, requestOptions);
+                replyText = AddMessageBubble("…", isUser: false);
+                ContextStatusTextBlock.Text = LmStudioClient.IsBusy
+                    ? "Sırada: önce webhook yanıtı bitiyor…"
+                    : "Model yanıtlıyor…";
+                var progress = new Progress<LlmProgress>(p =>
+                {
+                    replyText.Text = p.ContentSoFar.Length > 0
+                        ? p.ContentSoFar
+                        : $"Düşünüyor… ({p.ReasoningChunks} token)";
+                    MessagesScrollViewer.ScrollToEnd();
+                });
 
-                AddMessageBubble(assistantReply, isUser: false);
-                await _chatRepository.SaveMessageAsync(_currentSession.Session_ID, _currentUser.User_ID, "assistant", assistantReply, EstimateTokenCount(assistantReply));
+                var result = await _conversation.ReplyAsync(_currentSession!.Session_ID, _currentUser!.User_ID, messageText,
+                    _currentSettings!, ConversationService.DefaultSystemPrompt, progress);
+
+                replyText.Text = string.IsNullOrWhiteSpace(result.Reply.Content)
+                    ? "(Model boş cevap döndürdü.)"
+                    : result.Reply.Content;
+                ModelTitleTextBlock.Text = result.ModelId;
+                ContextStatusTextBlock.Text = result.Summary + (result.Retried ? " · düşünme payı genişletildi" : "");
+                foreach (var warning in result.Warnings)
+                {
+                    AddNoticeBubble(warning);
+                }
+            }
+            catch (LlmException ex)
+            {
+                // Bağlantı / model / zaman aşımı: kullanıcıya anlaşılır açıklama, pencere açmadan.
+                if (replyText is not null)
+                {
+                    replyText.Text = "⚠ " + ex.Message;
+                }
+                ContextStatusTextBlock.Text = "Yanıt alınamadı";
             }
             catch (Exception ex)
             {
@@ -300,78 +327,30 @@ namespace LLM_Memory_Manager
             }
         }
 
-        private static IReadOnlyList<ChatMessageDto> BuildLmStudioMessages(IEnumerable<ChatMessage> history, string currentUserMessage, AppSettings settings)
+        private void AddNoticeBubble(string text)
         {
-            var memoryLimit = Math.Max(1, settings.Max_Memory_Messages);
-            var filteredHistory = history
-                .Where(item => !string.IsNullOrWhiteSpace(item.Role) && !string.IsNullOrWhiteSpace(item.Message_Content))
-                .ToList();
-
-            var messages = new List<ChatMessageDto>
+            MessagesPanel.Children.Add(new Border
             {
-                new("system", BuildSystemPrompt(settings))
-            };
-
-            if (filteredHistory.Count > memoryLimit)
-            {
-                var olderMessages = filteredHistory.Take(filteredHistory.Count - memoryLimit).ToList();
-                var summary = BuildConversationSummary(olderMessages);
-                if (!string.IsNullOrWhiteSpace(summary))
+                Background = new SolidColorBrush(Color.FromRgb(58, 48, 20)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(204, 167, 0)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, -8, 0, 15),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                MaxWidth = 600,
+                Child = new TextBlock
                 {
-                    messages.Add(new ChatMessageDto("system", $"Önceki konuşma özeti: {summary}"));
+                    Text = "⚠ " + text,
+                    Foreground = new SolidColorBrush(Color.FromRgb(255, 214, 102)),
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 12.5
                 }
-
-                filteredHistory = filteredHistory.Skip(filteredHistory.Count - memoryLimit).ToList();
-            }
-
-            if (filteredHistory.Count > 0 &&
-                string.Equals(filteredHistory[^1].Role, "user", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(filteredHistory[^1].Message_Content, currentUserMessage, StringComparison.Ordinal))
-            {
-                filteredHistory = filteredHistory.Take(filteredHistory.Count - 1).ToList();
-            }
-
-            foreach (var item in filteredHistory)
-            {
-                messages.Add(new ChatMessageDto(item.Role ?? "user", item.Message_Content ?? string.Empty));
-            }
-
-            messages.Add(new ChatMessageDto("user", currentUserMessage));
-            return messages;
+            });
+            MessagesScrollViewer.ScrollToEnd();
         }
 
-        private static LmStudioService.LmStudioRequestOptions BuildRequestOptions(AppSettings settings)
-        {
-            var maxTokens = Math.Clamp(settings.Context_Length / 16, 128, 1024);
-            return new LmStudioService.LmStudioRequestOptions(settings.Model_Name, settings.Temperature, maxTokens);
-        }
-
-        private static string BuildSystemPrompt(AppSettings settings)
-        {
-            return $"Sen LLM Memory Manager içindeki yerel asistanısın. Kısa, net ve yardımcı cevap ver. Gereksiz uzun düşünme. Model: {settings.Model_Name}, sıcaklık: {settings.Temperature:0.##}, bellek mesaj limiti: {settings.Max_Memory_Messages}.";
-        }
-
-        private static string BuildConversationSummary(IReadOnlyList<ChatMessage> olderMessages)
-        {
-            var snippets = olderMessages
-                .Where(message => !string.IsNullOrWhiteSpace(message.Message_Content))
-                .TakeLast(4)
-                .Select(message => $"{(string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase) ? "Asistan" : "Kullanıcı")}: {Truncate(message.Message_Content!, 120)}");
-
-            return string.Join(" ", snippets).Trim();
-        }
-
-        private static string Truncate(string text, int maxLength)
-        {
-            if (string.IsNullOrWhiteSpace(text) || text.Length <= maxLength)
-            {
-                return text;
-            }
-
-            return text[..maxLength].Trim() + "...";
-        }
-
-        private void AddMessageBubble(string text, bool isUser)
+        private TextBlock AddMessageBubble(string text, bool isUser)
         {
             var bubble = new Border
             {
@@ -383,28 +362,18 @@ namespace LLM_Memory_Manager
                 MaxWidth = 600
             };
 
-            bubble.Child = new TextBlock
+            var textBlock = new TextBlock
             {
                 Text = text,
                 Foreground = Brushes.White,
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 14
             };
+            bubble.Child = textBlock;
 
             MessagesPanel.Children.Add(bubble);
             MessagesScrollViewer.ScrollToEnd();
-        }
-
-        private static int EstimateTokenCount(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return 0;
-            }
-
-            return text
-                .Split(new[] { ' ', '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries)
-                .Length;
+            return textBlock;
         }
     }
 }

@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="LLM Memory Manager/LLM Memory Manager.csproj" />
+  <Project Path="LlmBridge.Core.Tests/LlmBridge.Core.Tests.csproj" />
+  <Project Path="LlmBridge.Core/LlmBridge.Core.csproj" />
 </Solution>

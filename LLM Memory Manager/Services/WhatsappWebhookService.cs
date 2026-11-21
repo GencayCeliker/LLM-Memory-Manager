@@ -32,9 +32,12 @@ public sealed class WhatsappWebhookService : IDisposable
         }
     }
 
-    public WhatsappWebhookService(ChatRepository chatRepository)
+    private readonly ConversationService _conversation;
+
+    public WhatsappWebhookService(ChatRepository chatRepository, ConversationService conversation)
     {
         _chatRepository = chatRepository;
+        _conversation = conversation;
     }
 
     public Task StartAsync()
@@ -212,33 +215,28 @@ public sealed class WhatsappWebhookService : IDisposable
 
         var session = await _chatRepository.GetOrCreateLatestSessionAsync(user.User_ID);
 
-        // 1. Kullanıcıdan gelen mesajı Veritabanına kaydet
-        await _chatRepository.SaveMessageAsync(session.Session_ID, user.User_ID, "user", message, EstimateTokenCount(message));
-        Log($"Webhook mesajı kaydedildi: {phoneNumber} -> {message}");
+        Log($"Webhook mesajı alındı: {phoneNumber} -> {message}");
 
-        // --- YENİ EKLENEN KISIM: LLM'i Arka Planda Tetikle ---
+        // Yanıt arka planda üretilir. Ortak akış mesajı kaydeder, sohbet geçmişini token bütçesiyle ekler ve
+        // istekleri sıraya koyar: art arda gelen mesajlar GPU'ya aynı anda yüklenmez.
         _ = Task.Run(async () =>
         {
             try
             {
-                var lmService = new LmStudioService();
-
-                var messages = new List<ChatMessageDto>
-            {
-                new ChatMessageDto("system", "Sen Türkçe konuşan, zeki ve kısa cevaplar veren bir asistansın."),
-                new ChatMessageDto("user", message)
-            };
-
-                var options = new LmStudioService.LmStudioRequestOptions(null, 0.7, 500);
-
-                // Gemma'dan cevabı alıyoruz
-                string aiReply = await lmService.GetChatReplyAsync(messages, options);
-
-                // İSTEĞE BAĞLI: Yapay zekanın verdiği cevabı da veritabanına "assistant" olarak kaydetmek istersen şu satırı aktif edebilirsin:
-                await _chatRepository.SaveMessageAsync(session.Session_ID, user.User_ID, "assistant", aiReply, EstimateTokenCount(aiReply));
-
-                // Cevabı Node.js üzerinden WhatsApp'a yolluyoruz!
-                await SendReplyToWhatsAppAsync(phoneNumber, aiReply);
+                var settings = await _chatRepository.GetOrCreateSettingsAsync();
+                var result = await _conversation.ReplyAsync(session.Session_ID, user.User_ID, message, settings,
+                    ConversationService.WhatsappSystemPrompt);
+                foreach (var warning in result.Warnings)
+                {
+                    Log("Uyarı: " + warning);
+                }
+                if (string.IsNullOrWhiteSpace(result.Reply.Content))
+                {
+                    Log("Model boş cevap döndürdü; WhatsApp'a gönderilmedi.");
+                    return;
+                }
+                Log("Yanıt hazır: " + result.Summary);
+                await SendReplyToWhatsAppAsync(phoneNumber, result.Reply.Content);
             }
             catch (Exception ex)
             {
@@ -327,16 +325,6 @@ public sealed class WhatsappWebhookService : IDisposable
         {
             Log($"❌ WhatsApp'a cevap gönderilirken hata oluştu: {ex.Message}");
         }
-    }
-
-    private static int EstimateTokenCount(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return 0;
-        }
-
-        return text.Split(new[] { ' ', '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
     }
 
     private void Log(string message)

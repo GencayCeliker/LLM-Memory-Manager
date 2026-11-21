@@ -18,4 +18,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\LlmBridge.Core\LlmBridge.Core.csproj" />
+  </ItemGroup>
+
 </Project>
