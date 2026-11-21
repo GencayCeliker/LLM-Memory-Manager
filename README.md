@@ -18,10 +18,9 @@ Sohbet listesi, **Ölçüm** (VRAM / bellek / bağlantı tanılama) ve **Ayarlar
 
 | Ana ekran | Tanılama ve ölçüm | Model ve bellek ayarları |
 | --- | --- | --- |
+| ![Ana ekran](docs/ana-ekran.png) | ![Tanılama ve ölçüm](docs/olcum.png) | ![Model ve bellek ayarları](docs/ayarlar.png) |
 
-> Kayıt LM Studio kapalıyken alındı; bu yüzden tanılama ekranında LM Studio "Ulaşılamıyor" görünüyor. Sohbet için LM Studio'da bir model yüklü olmalıdır.
->
-> Görüntüler, depodaki kurulum script'iyle kurulan örnek veritabanı üzerinde uygulama çalıştırılarak alınmıştır.
+> Kayıt, RTX 4060 Laptop (8 GB) üzerinde LM Studio'da `google/gemma-4-e4b` yüklüyken alındı. Sohbet için LM Studio'da bir model yüklü olmalıdır.
 
 
 ## 🚀 Özellikler
@@ -30,7 +29,7 @@ Sohbet listesi, **Ölçüm** (VRAM / bellek / bağlantı tanılama) ve **Ayarlar
 - **Kalıcı hafıza:** Kullanıcılar, oturumlar ve tüm mesajlar SQL Server'da tutulur (EF Core)
 - **Token bütçeli bağlam:** Geçmiş, modelin LM Studio'da *gerçekten* yüklü olduğu bağlam uzunluğuna sığacak kadar gönderilir; yanıta (ve düşünen modellerin düşünmesine) yer ayrılır. Sığmayan eski mesajlar bilerek çıkarılır, kısa bir notu talimata eklenir. LM Studio bağlam dolunca hata vermeden geçmişin ortasını sessizce sildiği için kırpma uygulamada yapılır.
 - **Kendini düzelten token tahmini:** Temel tahmin 3 karakter/token; her yanıttaki gerçek `prompt_tokens` ile model başına çarpan öğrenilir (Türkçe/JSON/kod farkları). Kelime saymak gerçeğin yarısını veriyordu.
-- **Akışlı yanıt:** Cevap yazıldıkça görünür, düşünen modellerde "Düşünüyor… (N token)" gösterilir; zaman aşımı toplam süre değil 120 sn sessizliktir. Üst çubukta bağlam/yanıt/düşünme token'ları ve hız yazar.
+- **Akışlı yanıt:** Cevap yazıldıkça görünür, düşünen modellerde "Düşünüyor… (N token)" gösterilir; zaman aşımı toplam süre değil 120 sn sessizliktir. Üst çubukta bağlam/yanıt/düşünme token'ları ve hız yazar. Yanıtlar Markdown olarak biçimlendirilir: başlıklar, kalın/italik, kod ve iç içe listeler (alt satıra kayan maddeler girintisini korur).
 - **Düşünen model koruması:** Gemma 4 kısa bir cevaptan önce ~500 token düşünür; eski `max_tokens=512` ile cevap boş geliyordu. Bütçe artık bağlamdan hesaplanır, yine yetmezse kalan bağlamla bir kez yeniden denenir.
 - **Tek sıra:** Sohbet ve WhatsApp istekleri aynı anda GPU'ya gönderilmez; sırayla işlenir.
 - **Model ayarları penceresi:** Model adı, hafızadaki mesaj sayısı ve temperature uygulanır. Context Length yalnızca LM Studio bilgi vermezse kullanılır; CPU thread / GPU layer LM Studio'nun yükleme ekranında ayarlanır.
@@ -62,6 +61,7 @@ LLM Memory Manager/
 ├── Models/                     ← User, Session, ChatMessage, AppSettings
 └── Services/
     ├── ConversationService.cs  ← Sohbet ve webhook'un ortak akışı (geçmiş → bütçe → model → kayıt)
+    ├── MarkdownRenderer.cs     ← Model yanıtını biçimli gösterir (WPF)
     └── WhatsappWebhookService.cs
 
 LlmBridge.Core/                 ← Arayüzden bağımsız LLM çekirdeği
@@ -69,6 +69,7 @@ LlmBridge.Core/                 ← Arayüzden bağımsız LLM çekirdeği
 ├── ContextBuilder.cs           ← Token bütçesine göre geçmiş kırpma
 ├── TokenEstimator.cs           ← Token tahmini + gerçek sayıdan öğrenen çarpan
 ├── ChatPipeline.cs             ← Model/bağlam okuma, bütçe, yeniden deneme, uyarılar
+├── MarkdownLite.cs             ← Yanıtlardaki Markdown alt kümesinin ayrıştırıcısı
 └── GpuMonitor.cs               ← VRAM, paylaşılan bellek (taşma), sıcaklık
 
 LlmBridge.Core.Tests/           ← xUnit testleri (sahte sunucuyla; LM Studio gerekmez)
