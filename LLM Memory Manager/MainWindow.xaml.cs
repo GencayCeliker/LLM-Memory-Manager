@@ -74,7 +74,7 @@ namespace LLM_Memory_Manager
             }
 
             await _sendLock.WaitAsync();
-            TextBlock? replyText = null;
+            Border? replyBubble = null;
             try
             {
                 await EnsureConversationAsync();
@@ -83,24 +83,34 @@ namespace LLM_Memory_Manager
                 AddMessageBubble(messageText, isUser: true);
                 MessageInputBox.Clear();
 
-                replyText = AddMessageBubble("…", isUser: false);
+                replyBubble = AddMessageBubble("…", isUser: false);
                 ContextStatusTextBlock.Text = LmStudioClient.IsBusy
                     ? "Sırada: önce webhook yanıtı bitiyor…"
                     : "Model yanıtlıyor…";
                 var progress = new Progress<LlmProgress>(p =>
                 {
-                    replyText.Text = p.ContentSoFar.Length > 0
-                        ? p.ContentSoFar
-                        : $"Düşünüyor… ({p.ReasoningChunks} token)";
+                    if (p.ContentSoFar.Length > 0)
+                    {
+                        SetBubbleMarkdown(replyBubble, p.ContentSoFar);
+                    }
+                    else
+                    {
+                        SetBubbleText(replyBubble, $"Düşünüyor… ({p.ReasoningChunks} token)");
+                    }
                     MessagesScrollViewer.ScrollToEnd();
                 });
 
                 var result = await _conversation.ReplyAsync(_currentSession!.Session_ID, _currentUser!.User_ID, messageText,
                     _currentSettings!, ConversationService.DefaultSystemPrompt, progress);
 
-                replyText.Text = string.IsNullOrWhiteSpace(result.Reply.Content)
-                    ? "(Model boş cevap döndürdü.)"
-                    : result.Reply.Content;
+                if (string.IsNullOrWhiteSpace(result.Reply.Content))
+                {
+                    SetBubbleText(replyBubble, "(Model boş cevap döndürdü.)");
+                }
+                else
+                {
+                    SetBubbleMarkdown(replyBubble, result.Reply.Content);
+                }
                 ModelTitleTextBlock.Text = result.ModelId;
                 ContextStatusTextBlock.Text = result.Summary + (result.Retried ? " · düşünme payı genişletildi" : "");
                 foreach (var warning in result.Warnings)
@@ -111,9 +121,9 @@ namespace LLM_Memory_Manager
             catch (LlmException ex)
             {
                 // Bağlantı / model / zaman aşımı: kullanıcıya anlaşılır açıklama, pencere açmadan.
-                if (replyText is not null)
+                if (replyBubble is not null)
                 {
-                    replyText.Text = "⚠ " + ex.Message;
+                    SetBubbleText(replyBubble, "⚠ " + ex.Message);
                 }
                 ContextStatusTextBlock.Text = "Yanıt alınamadı";
             }
@@ -350,7 +360,7 @@ namespace LLM_Memory_Manager
             MessagesScrollViewer.ScrollToEnd();
         }
 
-        private TextBlock AddMessageBubble(string text, bool isUser)
+        private Border AddMessageBubble(string text, bool isUser)
         {
             var bubble = new Border
             {
@@ -362,18 +372,33 @@ namespace LLM_Memory_Manager
                 MaxWidth = 600
             };
 
-            var textBlock = new TextBlock
+            // Kullanıcının yazdığı olduğu gibi kalır; model yanıtındaki Markdown biçimlendirilir.
+            if (isUser)
+            {
+                SetBubbleText(bubble, text);
+            }
+            else
+            {
+                SetBubbleMarkdown(bubble, text);
+            }
+
+            MessagesPanel.Children.Add(bubble);
+            MessagesScrollViewer.ScrollToEnd();
+            return bubble;
+        }
+
+        private const double MessageFontSize = 14;
+
+        private static void SetBubbleText(Border bubble, string text) =>
+            bubble.Child = new TextBlock
             {
                 Text = text,
                 Foreground = Brushes.White,
                 TextWrapping = TextWrapping.Wrap,
-                FontSize = 14
+                FontSize = MessageFontSize
             };
-            bubble.Child = textBlock;
 
-            MessagesPanel.Children.Add(bubble);
-            MessagesScrollViewer.ScrollToEnd();
-            return textBlock;
-        }
+        private static void SetBubbleMarkdown(Border bubble, string markdown) =>
+            bubble.Child = MarkdownRenderer.Build(markdown, MessageFontSize, Brushes.White);
     }
 }

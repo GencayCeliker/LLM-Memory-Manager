@@ -27,7 +27,41 @@
                            VerticalAlignment="Center" Margin="20,0,0,0"/>
 
                 <ListBox x:Name="ConversationListBox" Grid.Row="1" Background="Transparent" BorderThickness="0" Foreground="White" FontSize="15" Margin="10,0,10,0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          SelectionChanged="ConversationListBox_SelectionChanged">
+                    <ListBox.Resources>
+                        <!-- Koyu temaya uygun ince kaydırma çubuğu; varsayılan çubuk öğelerden yer çalıyordu. -->
+                        <Style TargetType="ScrollBar">
+                            <Setter Property="Width" Value="6"/>
+                            <Setter Property="MinWidth" Value="6"/>
+                            <Setter Property="Margin" Value="4,0,0,0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ScrollBar">
+                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                            <Track.Thumb>
+                                                <Thumb>
+                                                    <Thumb.Template>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border Background="#55555A" CornerRadius="3"/>
+                                                        </ControlTemplate>
+                                                    </Thumb.Template>
+                                                </Thumb>
+                                            </Track.Thumb>
+                                        </Track>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.Resources>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel ToolTip="{Binding}">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding DateText}" FontSize="12" Foreground="#9A9A9A" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="10"/>
